@@ -33,6 +33,15 @@ Build a personal Bloomberg-inspired investment research application with portfol
 - Keep task history, transient failures, and individual test-run results out of this guide. Put detailed setup and walkthroughs in the relevant README or `docs/` file and link to them here.
 - Before finishing a task, check whether its accepted decisions or lessons require a guide update; summarize any changes to the user.
 
+## Branches and review
+- Create a separate branch for each implementation task, user story, feature, or bug fix before editing files. Apply the same workflow to standalone documentation and engineering-practice changes.
+- Keep the repository's default branch (`main` or `master`) reserved for reviewed changes. Do not implement or commit directly on it, or merge into it without explicit user approval following review.
+- Use descriptive branch names such as `codex/feat-<story-id>-<description>`, `codex/fix-<description>`, or `codex/docs-<description>`. Continue on an existing branch only when it belongs to the same task.
+- Start independent work from the default branch. If work depends on an unmerged branch, state that dependency and the review base explicitly.
+- Check the current branch and working-tree status before starting. Preserve unrelated user changes; use an isolated worktree when needed rather than moving those changes into another task's branch.
+- Keep implementation, tests, and related documentation together on the task branch. Present the change and actual verification results for review before merging.
+- If permissions prevent branch creation, report the limitation before making changes and leave the default branch's history untouched. Do not bypass the review requirement or claim a branch was created.
+
 ## Repository and backend conventions
 - Keep `backend/` independently buildable with its own Gradle wrapper. Future `frontend/` and `python/` projects should own their builds and dependencies; separate builds do not imply separate deployed services.
 - For backend setup, IntelliJ import, database configuration, and build commands, read `backend/README.md` before changing those workflows. In IntelliJ, link `backend/build.gradle.kts` as a Gradle project and use the configured JDK.

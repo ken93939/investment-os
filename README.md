@@ -14,6 +14,14 @@ portfolio analytics, and eventually evidence-grounded research agents.
 Only the backend is scaffolded today. Each future project will own its dependency
 manager and build; a separate build does not require a separately deployed service.
 
+## Contribution workflow
+
+Use a separate branch for every implementation task, user story, feature, bug fix,
+or standalone documentation change. Review the change and its verification results
+before merging into the default branch (`main` or `master`); merging requires the
+owner's explicit approval. See [AGENTS.md](AGENTS.md#branches-and-review) for branch
+naming, handling existing work, and the full review rules.
+
 ## Backend checks
 
 Requires JDK 21. No system Gradle or database is needed for the checks:
