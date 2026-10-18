@@ -26,6 +26,33 @@ Build a personal Bloomberg-inspired investment research application with portfol
 6. At the end explain: what changed, important code paths, key design decisions, failure modes, and what I should learn from this task.
 7. Ask before destructive changes, production data operations, real transactions, or exposing credentials.
 
+## Maintaining this guide
+- Keep `AGENTS.md` current as part of ongoing work. When we agree on an engineering practice, coding standard, testing convention, or discover a recurring pitfall, update the relevant section in the same change without waiting for a separate request.
+- Record durable, actionable guidance and the reason for nonobvious constraints. Distinguish agreed decisions from provisional proposals.
+- Revise or remove outdated guidance rather than accumulating contradictory rules. Keep each rule in one authoritative place.
+- Keep task history, transient failures, and individual test-run results out of this guide. Put detailed setup and walkthroughs in the relevant README or `docs/` file and link to them here.
+- Before finishing a task, check whether its accepted decisions or lessons require a guide update; summarize any changes to the user.
+
+## Repository and backend conventions
+- Keep `backend/` independently buildable with its own Gradle wrapper. Future `frontend/` and `python/` projects should own their builds and dependencies; separate builds do not imply separate deployed services.
+- For backend setup, IntelliJ import, database configuration, and build commands, read `backend/README.md` before changing those workflows. In IntelliJ, link `backend/build.gradle.kts` as a Gradle project and use the configured JDK.
+- Use Kotlin with Spring Boot, Spring Data JPA, and PostgreSQL for the backend. Treat the Gradle build as the source of truth for toolchain and dependency versions.
+- Enforce Kotlin formatting with Pinterest ktlint and `backend/.editorconfig`. Run `./gradlew ktlintCheck` from `backend/`; use `ktlintFormat` to apply formatting fixes.
+- Put database transaction boundaries in the service layer. Keep JPA open-in-view disabled, and introduce versioned schema migrations alongside the first production entities; runtime Hibernate schema handling should validate the schema.
+- Use ordinary classes for JPA entities and data classes for appropriate value objects and DTOs. Preserve the Kotlin Spring/JPA compiler support needed for proxies and entity construction.
+- Evaluate `~/IdeaProjects/architect-framework` when a concrete workflow needs idempotency, durable events, or sagas. Inspect its current dependencies and configuration before adoption, and prefer a versioned dependency over coupling builds to an absolute sibling-checkout path.
+
+## Testing conventions
+- Use JUnit Jupiter for backend tests. Name every test in the `GIVEN <precondition> WHEN <scenario> THEN <expectation>` format, with uppercase keywords. In Kotlin, use backtick function names so the scenario reads as a sentence.
+- Separate each test body with `// GIVEN`, `// WHEN`, and `// THEN`: arrange the initial state, execute the behavior under test, then assert the expected outcome. Keep failure assertions in the THEN section by capturing the outcome in WHEN when necessary.
+- Keep unit tests independent of Spring and database startup when they exercise pure logic. Use integration tests for persistence, framework wiring, and transaction behavior.
+- Use Zonky embedded PostgreSQL for database tests; do not use H2. Keep embedded database dependencies and configuration in the test scope, and align the PostgreSQL major version with the application's database.
+- Reuse `backend/src/test/kotlin/com/kenkwok/investmentos/EmbeddedPostgresConfiguration.kt` for Spring database tests. It supplies an isolated datasource without Docker or `DB_*` credentials; tests must not connect to a developer or production database.
+- Use an ephemeral database port, initialize with the portable `C` locale and UTF-8 encoding, and let Spring close JPA before stopping PostgreSQL. Keep Zonky's independent JVM shutdown hook disabled to avoid cleanup races. Add explicit collation tests if a feature depends on locale-specific sorting.
+- Keep tests isolated through rollback or explicit cleanup. Cover meaningful failure cases, including transaction rollback after flushed writes where persistence is involved.
+- For backend code changes, run `./gradlew test ktlintCheck` from `backend/`; run `./gradlew build ktlintCheck` when build configuration, dependencies, or packaging change. Report failures and environmental limitations accurately.
+- Add migration, PostgreSQL-specific SQL, and concurrency tests when those behaviors are introduced; the existing persistence smoke tests do not establish those guarantees.
+
 ## Engineering and financial safety
 - Never commit secrets; use environment variables and documented local setup.
 - Validate untrusted inputs and outputs; handle timeouts, rate limits, retries, and idempotency.

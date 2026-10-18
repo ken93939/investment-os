@@ -10,7 +10,7 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import javax.sql.DataSource
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
 @SpringBootTest
@@ -30,36 +30,56 @@ class InvestmentOsApplicationTests {
     private lateinit var transactionManager: PlatformTransactionManager
 
     @Test
-    fun `tests use PostgreSQL 17`() {
+    fun `GIVEN the embedded datasource WHEN reading database metadata THEN the database is PostgreSQL 17`() {
+        // GIVEN
         dataSource.connection.use { connection ->
-            assertEquals("PostgreSQL", connection.metaData.databaseProductName)
-            assertEquals(17, connection.metaData.databaseMajorVersion)
+            // WHEN
+            val metadata = connection.metaData
+
+            // THEN
+            assertEquals("PostgreSQL", metadata.databaseProductName)
+            assertEquals(17, metadata.databaseMajorVersion)
         }
     }
 
     @Test
-    fun `JPA persists and reloads an entity`() {
-        TransactionTemplate(transactionManager).executeWithoutResult { transaction ->
-            val saved = repository.saveAndFlush(PersistenceProbe("persistence check"))
-            val id = assertNotNull(saved.id)
-            entityManager.clear()
+    fun `GIVEN a new entity WHEN saving and reloading it THEN its generated ID and label are preserved`() {
+        // GIVEN
+        val probe = PersistenceProbe("persistence check")
+        val transactionTemplate = TransactionTemplate(transactionManager)
 
-            assertEquals("persistence check", repository.findById(id).orElseThrow().label)
+        transactionTemplate.executeWithoutResult { transaction ->
+            // WHEN
+            val saved = repository.saveAndFlush(probe)
+            entityManager.clear()
+            val reloaded = repository.findById(requireNotNull(saved.id)).orElseThrow()
+
+            // THEN
+            assertNotNull(reloaded.id)
+            assertEquals(saved.id, reloaded.id)
+            assertEquals("persistence check", reloaded.label)
             transaction.setRollbackOnly()
         }
     }
 
     @Test
-    fun `failed transaction rolls back flushed writes`() {
+    fun `GIVEN a new entity WHEN its transaction fails after flushing THEN the insert is rolled back`() {
+        // GIVEN
         val initialCount = repository.count()
+        val probe = PersistenceProbe("must roll back")
+        val transactionTemplate = TransactionTemplate(transactionManager)
 
-        assertFailsWith<IllegalStateException> {
-            TransactionTemplate(transactionManager).executeWithoutResult {
-                repository.saveAndFlush(PersistenceProbe("must roll back"))
-                error("Simulated failure after flush")
+        // WHEN
+        val result =
+            runCatching {
+                transactionTemplate.executeWithoutResult {
+                    repository.saveAndFlush(probe)
+                    error("Simulated failure after flush")
+                }
             }
-        }
 
+        // THEN
+        assertIs<IllegalStateException>(result.exceptionOrNull())
         assertEquals(initialCount, repository.count())
     }
 }
