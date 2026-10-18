@@ -54,3 +54,19 @@ ktlint {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
+
+tasks.named<Test>("test") {
+    useJUnitPlatform { excludeTags("live-provider") }
+}
+
+tasks.register<Test>("liveProviderTest") {
+    description = "Fetches instrument metadata using configured provider credentials; excluded from ordinary builds"
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("live-provider") }
+    outputs.upToDateWhen { false }
+    doFirst {
+        require(!System.getenv("ALPHA_VANTAGE_API_KEY").isNullOrBlank()) { "Set ALPHA_VANTAGE_API_KEY to run the live provider test" }
+    }
+}

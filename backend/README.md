@@ -120,6 +120,15 @@ Missing credentials, an unavailable database, or schema mismatches prevent norma
 startup. Embedded PostgreSQL is a test-only dependency. Pool connection acquisition
 has a five second timeout. The health endpoint also checks database availability.
 
+## Financial data providers
+
+The `marketdata` package implements US-002's provider contracts and the initial
+Alpha Vantage adapter. It is disabled by default and needs no key for normal
+startup/tests. See [the provider guide](../docs/US-002_DATA_PROVIDERS.md) for
+configuration, dataset limitations, provenance, typed failures, and the explicit
+`./gradlew liveProviderTest` command. Financial HTTP endpoints and persistence
+belong to later stories.
+
 ## Architect Framework adoption
 
 The sibling `~/IdeaProjects/architect-framework` is available as a reference, but is

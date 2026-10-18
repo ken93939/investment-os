@@ -117,13 +117,17 @@ Handle provider rate limits, request failures, missing fields, and unsupported i
 
 **Acceptance Criteria**
 
-- [ ] Providers implement defined interfaces.
-- [ ] Services do not depend directly on provider-specific response formats.
-- [ ] Input symbols are normalized and validated.
-- [ ] Provider errors map to standardized application errors.
-- [ ] Returned data includes source and timestamp metadata.
-- [ ] Unit tests use mocked providers without network access.
+- [x] Providers implement defined interfaces.
+- [x] Services do not depend directly on provider-specific response formats.
+- [x] Input symbols are normalized and validated.
+- [x] Provider errors map to standardized application errors.
+- [x] Returned data includes source and timestamp metadata.
+- [x] Unit tests use mocked providers without network access.
 - [ ] An integration test can fetch a supported US instrument when configured with valid provider credentials.
+
+Implementation and provider limitations are documented in
+[US-002_DATA_PROVIDERS.md](US-002_DATA_PROVIDERS.md). The opt-in live test requires
+`ALPHA_VANTAGE_API_KEY`; live verification remains pending without credentials.
 
 **Dependencies:** US-001
 

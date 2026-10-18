@@ -2,3 +2,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+
+market-data:
+  primary: none
+  alpha-vantage-api-key: ""

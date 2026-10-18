@@ -21,6 +21,8 @@ services:
       DB_USERNAME: ${DB_USERNAME:-investment_os}
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the root .env}
       SERVER_ADDRESS: 0.0.0.0
+      MARKET_DATA_PRIMARY: ${MARKET_DATA_PRIMARY:-none}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     depends_on:

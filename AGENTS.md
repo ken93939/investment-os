@@ -62,6 +62,14 @@ Build a personal Bloomberg-inspired investment research application with portfol
 - For backend code changes, run `./gradlew test ktlintCheck` from `backend/`; run `./gradlew build ktlintCheck` when build configuration, dependencies, or packaging change. Report failures and environmental limitations accurately.
 - Add migration, PostgreSQL-specific SQL, and concurrency tests when those behaviors are introduced; the existing persistence smoke tests do not establish those guarantees.
 
+## Market-data provider conventions
+- Use the application-owned contracts in the backend `marketdata` package. Keep provider JSON, HTTP status handling, and field mappings inside adapters; callers use `MarketDataGateway` and typed `MarketDataException` codes.
+- Read `docs/US-002_DATA_PROVIDERS.md` before changing provider configuration, coverage, adjustment semantics, or error handling. Provider integration stays optional; ordinary builds/tests make no remote provider calls.
+- Preserve provider/dataset provenance, retrieval time, source dates, units, and explicit unknown metadata. Keep publication time distinct from fiscal period end; current/revised records are not point-in-time backtest evidence.
+- Keep currency-dependent financial amounts as `BigDecimal`. Never replace missing fields with zero or label raw daily prices as adjusted/live data. Preserve available history windows and nullable currency/exchange information.
+- Bound provider request and response-body time, response size, and redirects. Map HTTP and successful-status error envelopes to safe application errors. Keep automatic retries and cross-provider fallback explicit rather than silently consuming quota or mixing data semantics.
+- Keep API keys server-side and out of generated `toString`, URLs in logs, raw response/error messages, and exception causes. The opt-in `liveProviderTest` task is separate from the ordinary test task and requires credentials supplied through environment variables.
+
 ## Frontend conventions
 - Keep `frontend/` independently buildable with npm and its own lockfile. Use Node 24 (`frontend/.nvmrc`) and `npm ci`; read `frontend/README.md` before changing setup, checks, or backend connectivity.
 - Use Next.js App Router, strict TypeScript, and Tailwind CSS, with ESLint for linting and Prettier for formatting. Keep pages as Server Components by default and limit Client Components to interactive UI.

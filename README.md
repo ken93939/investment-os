@@ -65,6 +65,10 @@ omit internal details. The [operational contract](contracts/openapi.yaml) define
 the public health/readiness response. CI runs independent backend/frontend checks
 and a disposable full-stack smoke check; local checks remain usable without CI.
 
+Market-data integration is optional and disabled by default. See the
+[US-002 provider guide](docs/US-002_DATA_PROVIDERS.md) to enable Alpha Vantage,
+understand dataset limits, and run the explicit live integration test.
+
 ## Contribution workflow
 
 Use a separate branch for every implementation task, user story, feature, bug fix,

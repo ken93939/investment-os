@@ -29,6 +29,12 @@ server:
   address: ${SERVER_ADDRESS:127.0.0.1}
   port: ${SERVER_PORT:8080}
 
+market-data:
+  primary: ${MARKET_DATA_PRIMARY:none}
+  alpha-vantage-api-key: ${ALPHA_VANTAGE_API_KEY:}
+  request-timeout: 8s
+  connect-timeout: 2s
+
 management:
   endpoints:
     web:
