@@ -1,7 +1,7 @@
 # Investment OS backend
 
 Independent Kotlin / Spring Boot modular monolith. Build and run from this directory;
-neither the planned frontend nor Python project is needed.
+neither the frontend nor planned Python project is needed.
 
 ## Toolchain
 
@@ -55,6 +55,8 @@ Compose and export `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` yourself.
 Check `http://localhost:8080/actuator/health`; a connected database returns status
 `UP`. No stock or portfolio API exists yet. Only health is exposed through Actuator.
 HTTP and the Compose database port bind to loopback for local use.
+`/health` reports process liveness; `/ready` reports readiness including database
+connectivity. Backend logs use Spring Boot's built-in ECS JSON format.
 
 ```sh
 ./gradlew bootJar
@@ -78,9 +80,11 @@ The Spring Kotlin plugin opens Spring classes for proxies. The JPA plugin genera
 entity no-argument constructors, and `allOpen` enables Hibernate entity proxies.
 Use ordinary classes for entities; reserve data classes for value objects and DTOs.
 
-Hibernate validates the schema and never creates or updates application tables at
-runtime. There are no production entities or tables yet. Add versioned migrations
-(for example Flyway) alongside the first real entity, before enabling that feature.
+Flyway runs before JPA and owns the `investment_os` schema. The initial
+`db/migration/V1__initialize_schema.sql` migration establishes the baseline without
+inventing domain tables. Hibernate validates rather than modifying the runtime
+schema. Add the first domain tables in V2 or later; preserve applied scripts so
+Flyway can detect checksum changes. Destructive Flyway clean is disabled.
 JDBC timestamps use UTC; future financial records must also retain provider,
 source as-of time, exchange, currency, and data freshness explicitly.
 
@@ -101,14 +105,16 @@ This gives tests C collation; locale-specific sorting needs explicit tests when 
 No `DB_*` environment variables are needed;
 the test datasource does not use the application's external database configuration.
 The `test` profile creates/drops only the test entity schema in this temporary
-database. The three JUnit tests verify PostgreSQL 17, startup/JPA wiring, generated
-IDs, database reload, and rollback after a flushed write. The write tests roll back
+database. The JUnit tests verify PostgreSQL 17, startup/JPA wiring, generated IDs,
+database reload, rollback after a flushed write, fresh migration/repeatability,
+migration checksum protection, and operational endpoint/readiness behavior. The write tests roll back
 their changes so they can share a context without retaining test records.
 
 Run tests normally from Gradle or IntelliJ. Native PostgreSQL startup requires a
 supported OS/architecture, permission to execute the extracted binaries, and a
-non-root user. Startup failures fail the tests. Migration and concurrency tests
-still need to be added alongside the first domain schema.
+non-root user. Startup failures fail the tests. Add domain migration and concurrency
+tests alongside the first domain schema. Flyway runs in these tests as it does at
+runtime; only the test-only JPA probe uses Hibernate create/drop.
 
 Missing credentials, an unavailable database, or schema mismatches prevent normal
 startup. Embedded PostgreSQL is a test-only dependency. Pool connection acquisition

@@ -77,7 +77,7 @@ and follow the `GIVEN … WHEN … THEN …` naming and comment convention.
 
 Pages and the shared shell are Server Components by default. Only navigation and
 the interactive connection panel are Client Components. The browser requests
-`/api/backend/health` on the same origin; Next.js calls `/actuator/health` on the
+`/api/backend/health` on the same origin; Next.js calls `/ready` on the
 configured backend, so no browser CORS configuration is required for this check.
 The proxy has a three-second timeout, disables caching and redirects, validates
 the response, and returns only `connected` or `unavailable`. The client has a
@@ -91,8 +91,11 @@ exchange, and freshness. Missing values stay missing; no fixture prices are show
 
 The tests cover health response validation, network/timeout failure mapping,
 connection UI transitions and retry, and accessible active navigation. They do
-not exercise a live backend or implement the complete US-001 story. Database
-migrations, broader CI/container orchestration, and market APIs remain separate work.
+not exercise a live backend. The root Compose smoke check exercises real
+frontend-to-backend connectivity; see the [full-stack setup](../README.md#full-stack-local-setup).
+Market APIs remain separate work. The Docker build sets `BUILD_STANDALONE=true`
+to package a standalone production Node server. Host builds keep the standard
+output used by `npm start`. The backend origin is read at runtime.
 
 The dependency audit currently reports a development-tool advisory in `braces`,
 pulled in by Next.js's ESLint configuration through `fast-glob` and `micromatch`.

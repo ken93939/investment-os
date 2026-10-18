@@ -1,6 +1,8 @@
 package com.kenkwok.investmentos
 
 import jakarta.persistence.EntityManager
+import org.flywaydb.core.Flyway
+import org.flywaydb.core.api.exception.FlywayValidateException
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -28,6 +30,51 @@ class InvestmentOsApplicationTests {
 
     @Autowired
     private lateinit var transactionManager: PlatformTransactionManager
+
+    @Autowired
+    private lateinit var flyway: Flyway
+
+    @Test
+    fun `GIVEN a fresh PostgreSQL database WHEN startup and repeat migration run THEN the baseline is applied once`() {
+        // GIVEN
+        val applied = flyway.info().applied()
+
+        // WHEN
+        val repeated = flyway.migrate()
+
+        // THEN
+        assertEquals(listOf("1"), applied.mapNotNull { it.version?.version })
+        assertEquals(0, repeated.migrationsExecuted)
+        assertEquals(true, flyway.validateWithResult().validationSuccessful)
+        dataSource.connection.use { connection ->
+            connection.createStatement().use { statement ->
+                val query = "SELECT count(*) FROM investment_os.flyway_schema_history WHERE success AND version = '1'"
+                statement.executeQuery(query).use { rows ->
+                    rows.next()
+                    assertEquals(1, rows.getInt(1))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `GIVEN an applied migration WHEN its checksum differs THEN validation fails before schema changes`() {
+        // GIVEN
+        val changed =
+            Flyway
+                .configure()
+                .dataSource(dataSource)
+                .schemas("investment_os")
+                .locations("classpath:db/changed-migration")
+                .load()
+
+        // WHEN
+        val result = runCatching { changed.validate() }
+
+        // THEN
+        assertIs<FlywayValidateException>(result.exceptionOrNull())
+        assertEquals(true, flyway.validateWithResult().validationSuccessful)
+    }
 
     @Test
     fun `GIVEN the embedded datasource WHEN reading database metadata THEN the database is PostgreSQL 17`() {

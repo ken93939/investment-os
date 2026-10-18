@@ -47,7 +47,7 @@ Build a personal Bloomberg-inspired investment research application with portfol
 - For backend setup, IntelliJ import, database configuration, and build commands, read `backend/README.md` before changing those workflows. In IntelliJ, link `backend/build.gradle.kts` as a Gradle project and use the configured JDK.
 - Use Kotlin with Spring Boot, Spring Data JPA, and PostgreSQL for the backend. Treat the Gradle build as the source of truth for toolchain and dependency versions.
 - Enforce Kotlin formatting with Pinterest ktlint and `backend/.editorconfig`. Run `./gradlew ktlintCheck` from `backend/`; use `ktlintFormat` to apply formatting fixes.
-- Put database transaction boundaries in the service layer. Keep JPA open-in-view disabled, and introduce versioned schema migrations alongside the first production entities; runtime Hibernate schema handling should validate the schema.
+- Put database transaction boundaries in the service layer. Keep JPA open-in-view disabled. Flyway owns the `investment_os` schema and runs before Hibernate validation; add versioned migrations for schema changes and preserve applied scripts/checksums. Keep destructive Flyway clean disabled.
 - Use ordinary classes for JPA entities and data classes for appropriate value objects and DTOs. Preserve the Kotlin Spring/JPA compiler support needed for proxies and entity construction.
 - Evaluate `~/IdeaProjects/architect-framework` when a concrete workflow needs idempotency, durable events, or sagas. Inspect its current dependencies and configuration before adoption, and prefer a versioned dependency over coupling builds to an absolute sibling-checkout path.
 
@@ -70,6 +70,13 @@ Build a personal Bloomberg-inspired investment research application with portfol
 - Use semantic navigation, keyboard focus indicators, accessible status messages, and responsive layouts. Use local/system fonts so basic builds do not require external font services.
 - Use Vitest and React Testing Library for frontend logic and interaction tests, with mocked network responses. Apply the same GIVEN/WHEN/THEN test names and comment sections used by the backend.
 - For frontend changes, run `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm test`, and `npm run build` from `frontend/`. Run a browser smoke check when UI behavior or layout changes, and state any verification limits.
+
+## Full-stack setup and operations
+- Use the root `compose.yaml` for the full stack and `backend/compose.yaml` only as an alternative host-development database. Read the root README before changing container networking, ports, or environment-file ownership.
+- Keep container-to-container origins on service DNS names and publish local development ports on loopback. Supply database credentials through ignored environment files; exclude local environment files from Docker build contexts.
+- Keep `/health` for process liveness and `/ready` for readiness including PostgreSQL. Database outages should fail readiness without failing liveness. The frontend connection check uses readiness.
+- Maintain shared API schemas in `contracts/` alongside endpoint changes. Use Spring Boot's built-in structured JSON logging rather than adding another logging stack.
+- When changing full-stack setup, validate Compose configuration, build/start an isolated stack with disposable credentials and its own volume, and run `bash scripts/smoke-compose.sh`. Preserve existing developer data. Report CI configuration separately from checks actually executed.
 
 ## Engineering and financial safety
 - Never commit secrets; use environment variables and documented local setup.

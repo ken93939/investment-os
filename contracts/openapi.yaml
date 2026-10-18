@@ -1,0 +1,39 @@
+openapi: 3.1.0
+info:
+  title: Investment OS operational API
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      operationId: liveness
+      summary: Process liveness; independent of database availability
+      responses:
+        '200':
+          $ref: '#/components/responses/Health'
+        '503':
+          $ref: '#/components/responses/Health'
+  /ready:
+    get:
+      operationId: readiness
+      summary: Readiness to serve requests, including database connectivity
+      responses:
+        '200':
+          $ref: '#/components/responses/Health'
+        '503':
+          $ref: '#/components/responses/Health'
+components:
+  responses:
+    Health:
+      description: Health state without internal connection details
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/HealthResponse'
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN, OUT_OF_SERVICE, UNKNOWN]

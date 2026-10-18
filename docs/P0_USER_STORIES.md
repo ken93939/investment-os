@@ -24,15 +24,19 @@ The user must be able to:
 ### Required Technology Stack
 
 - Frontend: Next.js, TypeScript, Tailwind CSS
-- Backend: Python, FastAPI, Pydantic, SQLAlchemy
+- Main backend: Kotlin, Spring Boot, Spring Data JPA (see `PROJECT_CONTEXT.md` and `../AGENTS.md`)
 - Database: PostgreSQL
-- Database migrations: Alembic
+- Database migrations: Flyway
 - AI Agent: LangGraph
 - Vector storage: pgvector, only when document retrieval requires it
 - Background processing: Redis and a worker where needed
 - Financial charts: TradingView Lightweight Charts
 - Containerization: Docker Compose
-- Testing: pytest, Vitest, Playwright
+- Testing: JUnit Jupiter with Zonky PostgreSQL, Vitest; Playwright when browser automation is introduced
+
+The Kotlin backend is the agreed foundation. Python/agent-specific choices in
+later stories are provisional and must be reconciled with the project context
+before those stories are implemented; US-001 does not introduce another backend.
 
 ### Development Principles
 
@@ -65,9 +69,9 @@ As a developer, I want a reproducible development environment so that the applic
 **Implementation Requirements**
 
 - Initialize a monorepo with separate frontend, backend, and shared contracts.
-- Configure Next.js, FastAPI, PostgreSQL, and Docker Compose.
+- Configure Next.js, Kotlin/Spring Boot, PostgreSQL, and Docker Compose.
 - Introduce configuration through environment variables.
-- Add database migrations using Alembic.
+- Add versioned database migrations using Flyway.
 - Implement structured application logging.
 - Provide `/health` and `/ready` backend endpoints.
 - Include setup documentation and example environment configuration.
@@ -75,13 +79,16 @@ As a developer, I want a reproducible development environment so that the applic
 
 **Acceptance Criteria**
 
-- [ ] `docker compose up --build` starts required services.
-- [ ] Frontend can reach the backend API.
-- [ ] Backend connects to PostgreSQL.
-- [ ] Database migrations execute successfully on a fresh database.
-- [ ] No credentials are committed to source control.
-- [ ] README includes local setup, tests, and troubleshooting.
+- [x] `docker compose up --build` starts required services.
+- [x] Frontend can reach the backend API.
+- [x] Backend connects to PostgreSQL.
+- [x] Database migrations execute successfully on a fresh database.
+- [x] No credentials are committed to source control.
+- [x] README includes local setup, tests, and troubleshooting.
 - [ ] CI executes linting, type checks, and basic tests.
+
+Setup and local verification are recorded in [US-001_SETUP_REVIEW.md](US-001_SETUP_REVIEW.md).
+The CI workflow is configured; the final checkbox awaits its first hosted run.
 
 **Dependencies:** None
 

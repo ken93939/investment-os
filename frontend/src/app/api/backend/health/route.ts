@@ -21,7 +21,7 @@ export async function GET() {
       return reply("unavailable", 503);
     }
 
-    const response = await fetch(new URL("/actuator/health", backend), {
+    const response = await fetch(new URL("/ready", backend), {
       cache: "no-store",
       signal: AbortSignal.timeout(3000),
       redirect: "error",

@@ -13,8 +13,17 @@ spring:
       ddl-auto: validate
     properties:
       hibernate:
+        default_schema: investment_os
         jdbc:
           time_zone: UTC
+  flyway:
+    schemas: investment_os
+    clean-disabled: true
+
+logging:
+  structured:
+    format:
+      console: ecs
 
 server:
   address: ${SERVER_ADDRESS:127.0.0.1}
@@ -28,3 +37,12 @@ management:
   endpoint:
     health:
       show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+          additional-path: server:/health
+        readiness:
+          include: readinessState,db
+          additional-path: server:/ready

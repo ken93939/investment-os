@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:17.8
+    environment:
+      POSTGRES_DB: investment_os
+      POSTGRES_USER: ${DB_USERNAME:-investment_os}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the root .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  backend:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/investment_os
+      DB_USERNAME: ${DB_USERNAME:-investment_os}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the root .env}
+      SERVER_ADDRESS: 0.0.0.0
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--max-time", "4", "http://127.0.0.1:8080/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8080
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres_data:

@@ -22,7 +22,7 @@ it("GIVEN a healthy backend WHEN checking its health THEN the route reports conn
   expect(await response.json()).toEqual({ status: "connected" });
   expect(response.headers.get("Cache-Control")).toBe("no-store");
   expect(fetchMock).toHaveBeenCalledWith(
-    new URL("http://127.0.0.1:8080/actuator/health"),
+    new URL("http://127.0.0.1:8080/ready"),
     expect.objectContaining({
       cache: "no-store",
       redirect: "error",
