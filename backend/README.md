@@ -137,6 +137,11 @@ configuration, dataset limitations, provenance, typed failures, and the explicit
 `./gradlew liveProviderTest` command. Financial HTTP endpoints and persistence
 belong to later stories.
 
+Provider configuration lives in `src/main/resources/market-data.yaml`, imported by
+`application.yaml`. Use `market-data-<profile>.yaml` and `SPRING_PROFILES_ACTIVE`
+for packaged environment overrides, or supply `ALPHA_VANTAGE_QUERY_URL` to the
+backend process. See the provider guide before changing endpoint settings.
+
 ## Architect Framework adoption
 
 The sibling `~/IdeaProjects/architect-framework` is available as a reference, but is

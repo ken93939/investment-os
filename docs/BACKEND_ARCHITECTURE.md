@@ -160,6 +160,18 @@ assume the MVC starter supplies client auto-configuration. Explicitly select the
 request factory so adding an unrelated library cannot change HTTP behavior.
 Keep provider-specific Jackson settings local to this client.
 
+Provider endpoints live in the imported `market-data.yaml`, with profile variants
+and deployment overrides described in the [provider guide](US-002_DATA_PROVIDERS.md).
+Configuration validates and injects the endpoint; clients do not choose a default
+environment. Protocol function names remain typed adapter code.
+
+Keep `exchange()` for explicit response inspection. It bypasses Spring status
+handlers, so `checkHttpStatus` translates status codes directly into application
+errors. Catch `RestClientException` for Spring transport failures and
+`JacksonException` for decoding failures. Avoid a broad catch that converts
+unrelated programming errors into apparent provider outages. Never attach raw
+client/parser exceptions as application exception causes.
+
 The HTTP implementation must preserve the existing transport guarantees:
 
 - Bounded connection time, bounded response reads, and a deadline covering the

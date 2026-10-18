@@ -1,0 +1,3 @@
+market-data:
+  alpha-vantage:
+    query-url: http://127.0.0.1:9191/stub/query

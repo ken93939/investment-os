@@ -11,6 +11,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.client.RestClient
+import java.net.URI
 import java.net.http.HttpClient
 import java.time.Clock
 import java.time.Duration
@@ -22,6 +23,27 @@ class MarketDataProperties {
     var requestTimeout: Duration = Duration.ofSeconds(8)
     var connectTimeout: Duration = Duration.ofSeconds(2)
     var alphaVantageApiKey: String = ""
+    var alphaVantage: AlphaVantageEndpointProperties = AlphaVantageEndpointProperties()
+}
+
+class AlphaVantageEndpointProperties {
+    var queryUrl: String = ""
+
+    fun endpoint(): URI {
+        val uri = runCatching { URI(queryUrl) }.getOrNull()
+        require(
+            uri != null &&
+                uri.scheme in setOf("https", "http") &&
+                !uri.host.isNullOrBlank() &&
+                uri.rawUserInfo == null &&
+                uri.rawQuery == null &&
+                uri.rawFragment == null &&
+                (uri.port == -1 || uri.port in 1..65535),
+        ) {
+            "market-data.alpha-vantage.query-url must be an absolute HTTP(S) URL without credentials, query parameters, or fragment"
+        }
+        return uri
+    }
 }
 
 @Configuration(proxyBeanMethods = false)
@@ -51,6 +73,7 @@ class MarketDataConfiguration {
             AlphaVantageRestClient(
                 builder.requestFactory(BoundedJdkRequestFactory(properties.alphaVantageApiKey, client, properties.requestTimeout)).build(),
                 clock,
+                properties.alphaVantage.endpoint(),
             ),
             clock,
         )

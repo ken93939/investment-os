@@ -37,6 +37,42 @@ configuration. Selecting Alpha Vantage without a key fails startup with a safe
 configuration message. Unknown or duplicate provider IDs also fail configuration.
 The key stays server-side; never put it in a `NEXT_PUBLIC_*` variable.
 
+### Provider URLs and environments
+
+`backend/src/main/resources/market-data.yaml` owns provider configuration and is
+imported by `application.yaml`. All current Alpha Vantage functions share one
+query endpoint; function names and typed parameters remain adapter-owned code.
+The URL is injected into the client, with no hardcoded production fallback in
+Kotlin.
+
+The default `market-data.alpha-vantage.query-url` is the provider's HTTPS `/query`
+URL. To package a different endpoint for a profile, add a
+`market-data-<profile>.yaml` beside the base file, for example:
+
+```yaml
+# backend/src/main/resources/market-data-local-stub.yaml
+market-data:
+  alpha-vantage:
+    query-url: http://127.0.0.1:9191/query
+```
+
+Activate it with `SPRING_PROFILES_ACTIVE=local-stub`. Spring loads the imported
+file's profile variant automatically. This selects the URL; it does not start a
+stub server or enable the provider. Keep keys outside committed YAML.
+
+For host development, export `ALPHA_VANTAGE_QUERY_URL` to override the base YAML
+value. Deployments can supply the property through external Spring configuration
+or the backend process environment. A root Compose `.env` entry alone does not
+forward new variables to a container; its backend environment must explicitly
+receive the override. The opt-in live test uses the same configuration and
+profile resolution as the application.
+
+URLs must be absolute HTTP(S) URLs with a valid host/port and no embedded
+credentials, query parameters, or fragment. Supply only the endpoint; the client
+encodes parameters and the request factory injects the API key. Invalid endpoint
+configuration fails startup with a safe message. Use HTTPS for real provider
+traffic; HTTP is available for local/provider stubs.
+
 ```sh
 cd backend
 ./gradlew build ktlintCheck
@@ -125,6 +161,17 @@ connect timeout, and an 8 MiB response limit. It rejects redirects so a
 credential-bearing request cannot follow an unexpected destination. HTTP 429
 retains `Retry-After` when supplied; JSON rate notices and entitlement failures
 inside HTTP 200 responses are also recognized.
+
+The client deliberately uses `RestClient.exchange()`: it must inspect HTTP status,
+`Retry-After`, and provider error envelopes before decoding the success DTO.
+Spring's default status exceptions and `onStatus` handlers belong to `retrieve()`
+and are not applied to `exchange()`. HTTP statuses are therefore classified in
+`checkHttpStatus`; constructing a Spring exception just to catch and translate it
+would add no information. Spring `RestClientException` transport failures are
+translated into safe application errors, and Jackson decoding failures become
+`MALFORMED_RESPONSE`. Unrelated programming failures propagate instead of being
+misreported as provider outages. Existing typed timeout/response-limit failures
+from the bounded factory propagate unchanged.
 
 Alpha Vantage requires the key in its query string. `BoundedJdkRequestFactory`
 adds it immediately before sending, so RestClient interceptors and observations

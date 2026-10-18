@@ -13,8 +13,10 @@ import com.kenkwok.investmentos.marketdata.adapter.out.alphavantage.dto.response
 import com.kenkwok.investmentos.marketdata.adapter.out.alphavantage.dto.response.OverviewResponse
 import com.kenkwok.investmentos.marketdata.adapter.out.alphavantage.dto.response.SymbolSearchResponse
 import com.kenkwok.investmentos.marketdata.application.MarketDataError
-import com.kenkwok.investmentos.marketdata.application.MarketDataException
+import org.springframework.http.client.ClientHttpResponse
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.RestClientException
+import tools.jackson.core.JacksonException
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.cfg.CoercionAction
@@ -34,7 +36,7 @@ import java.time.format.DateTimeFormatter
 internal class AlphaVantageRestClient(
     private val restClient: RestClient,
     private val clock: Clock,
-    private val endpoint: URI = URI("https://www.alphavantage.co/query"),
+    private val endpoint: URI,
 ) {
     private val mapper =
         JsonMapper
@@ -92,18 +94,11 @@ internal class AlphaVantageRestClient(
             }
         return try {
             restClient.get().uri(URI("$endpoint?$query")).exchange { _, response ->
-                when (response.statusCode.value()) {
-                    200 -> Unit
-                    401, 403 -> providerFailure(MarketDataError.AUTHENTICATION)
-                    404 -> providerFailure(MarketDataError.NOT_FOUND)
-                    429 -> providerFailure(MarketDataError.RATE_LIMITED, retryAfter(response.headers.getFirst("Retry-After")))
-                    in 400..499 -> providerFailure(MarketDataError.UNSUPPORTED)
-                    else -> providerFailure(MarketDataError.UNAVAILABLE)
-                }
+                checkHttpStatus(response)
                 val body =
                     try {
                         mapper.readTree(response.body)
-                    } catch (_: Exception) {
+                    } catch (_: JacksonException) {
                         malformed()
                     }
                 if (body == null || !body.isObject) malformed()
@@ -111,15 +106,25 @@ internal class AlphaVantageRestClient(
                 if (emptyIsNotFound && body.isEmpty) providerFailure(MarketDataError.NOT_FOUND)
                 try {
                     mapper.treeToValue(body, type)
-                } catch (_: Exception) {
+                } catch (_: JacksonException) {
                     malformed()
                 }
             } ?: malformed()
-        } catch (error: MarketDataException) {
-            throw error
-        } catch (_: Exception) {
+        } catch (_: RestClientException) {
             // RestClient exceptions can contain URLs and response bodies: never retain their causes.
             providerFailure(MarketDataError.UNAVAILABLE)
+        }
+    }
+
+    // exchange() bypasses RestClient status handlers; classify HTTP responses explicitly.
+    private fun checkHttpStatus(response: ClientHttpResponse) {
+        when (response.statusCode.value()) {
+            200 -> Unit
+            401, 403 -> providerFailure(MarketDataError.AUTHENTICATION)
+            404 -> providerFailure(MarketDataError.NOT_FOUND)
+            429 -> providerFailure(MarketDataError.RATE_LIMITED, retryAfter(response.headers.getFirst("Retry-After")))
+            in 400..499 -> providerFailure(MarketDataError.UNSUPPORTED)
+            else -> providerFailure(MarketDataError.UNAVAILABLE)
         }
     }
 

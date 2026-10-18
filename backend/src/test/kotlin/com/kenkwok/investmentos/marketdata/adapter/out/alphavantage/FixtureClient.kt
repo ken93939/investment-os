@@ -6,6 +6,7 @@ import org.springframework.mock.http.client.MockClientHttpRequest
 import org.springframework.mock.http.client.MockClientHttpResponse
 import org.springframework.web.client.RestClient
 import tools.jackson.databind.JsonNode
+import java.net.URI
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.time.Clock
@@ -26,5 +27,5 @@ internal fun fixtureClient(
                 setResponse(MockClientHttpResponse(response(parameters).toString().toByteArray(), HttpStatus.OK))
             }
         }
-    return AlphaVantageRestClient(RestClient.builder().requestFactory(factory).build(), clock)
+    return AlphaVantageRestClient(RestClient.builder().requestFactory(factory).build(), clock, URI("https://provider.test/query"))
 }

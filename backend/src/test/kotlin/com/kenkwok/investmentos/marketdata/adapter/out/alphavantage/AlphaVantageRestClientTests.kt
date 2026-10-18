@@ -385,4 +385,61 @@ class AlphaVantageRestClientTests {
             assertTrue(observedUris.none { it.contains("synthetic-secret") || it.contains("apikey") })
         }
     }
+
+    @Test
+    fun `GIVEN RestClient status handlers WHEN exchanging an HTTP failure THEN provider status mapping still applies`() {
+        // GIVEN
+        var handlerCalled = false
+        withServer({ exchange -> respond(exchange, 401, "sensitive-provider-body") }) { uri, client ->
+            val restClient =
+                RestClient
+                    .builder()
+                    .defaultStatusHandler({ true }) { _, _ -> handlerCalled = true }
+                    .requestFactory(BoundedJdkRequestFactory("test-key", client, Duration.ofSeconds(2)))
+                    .build()
+            val providerClient = AlphaVantageRestClient(restClient, clock, uri)
+
+            // WHEN
+            val result = runCatching { providerClient.overview(OverviewRequest("IBM")) }
+
+            // THEN
+            assertEquals(MarketDataError.AUTHENTICATION, assertIs<MarketDataException>(result.exceptionOrNull()).code)
+            assertEquals(false, handlerCalled)
+        }
+    }
+
+    @Test
+    fun `GIVEN a RestClient transport failure WHEN calling the provider THEN a safe application error hides its cause`() {
+        // GIVEN
+        val restClient =
+            RestClient
+                .builder()
+                .requestFactory { _, _ ->
+                    throw java.io.IOException("synthetic-secret-provider-details")
+                }.build()
+        val providerClient = AlphaVantageRestClient(restClient, clock, URI("https://provider.test/query"))
+
+        // WHEN
+        val result = runCatching { providerClient.overview(OverviewRequest("IBM")) }
+
+        // THEN
+        val error = assertIs<MarketDataException>(result.exceptionOrNull())
+        assertEquals(MarketDataError.UNAVAILABLE, error.code)
+        assertTrue(!error.message.orEmpty().contains("synthetic-secret"))
+        assertNull(error.cause)
+    }
+
+    @Test
+    fun `GIVEN a programming failure in client setup WHEN calling the provider THEN it is not misclassified as a network outage`() {
+        // GIVEN
+        val failure = IllegalStateException("synthetic-programming-failure")
+        val restClient = RestClient.builder().requestFactory { _, _ -> throw failure }.build()
+        val providerClient = AlphaVantageRestClient(restClient, clock, URI("https://provider.test/query"))
+
+        // WHEN
+        val result = runCatching { providerClient.overview(OverviewRequest("IBM")) }
+
+        // THEN
+        kotlin.test.assertSame(failure, result.exceptionOrNull())
+    }
 }
