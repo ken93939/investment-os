@@ -62,6 +62,15 @@ Build a personal Bloomberg-inspired investment research application with portfol
 - For backend code changes, run `./gradlew test ktlintCheck` from `backend/`; run `./gradlew build ktlintCheck` when build configuration, dependencies, or packaging change. Report failures and environmental limitations accurately.
 - Add migration, PostgreSQL-specific SQL, and concurrency tests when those behaviors are introduced; the existing persistence smoke tests do not establish those guarantees.
 
+## Frontend conventions
+- Keep `frontend/` independently buildable with npm and its own lockfile. Use Node 24 (`frontend/.nvmrc`) and `npm ci`; read `frontend/README.md` before changing setup, checks, or backend connectivity.
+- Use Next.js App Router, strict TypeScript, and Tailwind CSS, with ESLint for linting and Prettier for formatting. Keep pages as Server Components by default and limit Client Components to interactive UI.
+- Keep financial business logic and deterministic calculations in the backend. Next.js route handlers may adapt server-side API calls for the UI; provider credentials and backend origins belong in server-only configuration.
+- Represent missing financial values as unavailable and preserve provenance and freshness when data is introduced. Every data-driven UI needs loading, empty, and error states; backend health and market-data availability are distinct.
+- Use semantic navigation, keyboard focus indicators, accessible status messages, and responsive layouts. Use local/system fonts so basic builds do not require external font services.
+- Use Vitest and React Testing Library for frontend logic and interaction tests, with mocked network responses. Apply the same GIVEN/WHEN/THEN test names and comment sections used by the backend.
+- For frontend changes, run `npm run lint`, `npm run format:check`, `npm run typecheck`, `npm test`, and `npm run build` from `frontend/`. Run a browser smoke check when UI behavior or layout changes, and state any verification limits.
+
 ## Engineering and financial safety
 - Never commit secrets; use environment variables and documented local setup.
 - Validate untrusted inputs and outputs; handle timeouts, rate limits, retries, and idempotency.

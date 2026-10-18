@@ -6,13 +6,13 @@ portfolio analytics, and eventually evidence-grounded research agents.
 ## Repository layout
 
 - [`backend/`](backend/README.md): independent Kotlin / Spring Boot Gradle build.
-- `frontend/` (planned): independent Next.js / TypeScript application.
+- [`frontend/`](frontend/README.md): independent Next.js / TypeScript application.
 - `python/` (planned): independent quant and agent experiments, when needed.
 - [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md): product and architecture direction.
 - [`docs/LEARNING_PLAN.md`](docs/LEARNING_PLAN.md): learning and agent development guide.
 
-Only the backend is scaffolded today. Each future project will own its dependency
-manager and build; a separate build does not require a separately deployed service.
+The backend and frontend are scaffolded. Each project owns its dependencies and
+build; a separate build does not require a separately deployed service.
 
 ## Contribution workflow
 
@@ -32,3 +32,17 @@ cd backend
 ```
 
 See the [backend guide](backend/README.md) for PostgreSQL setup and application startup.
+
+## Frontend setup
+
+Requires Node 24 and npm:
+
+```sh
+cd frontend
+nvm use # If using nvm.
+npm ci
+npm run dev
+```
+
+Open <http://127.0.0.1:3000>. See the [frontend guide](frontend/README.md) for
+tests, production builds, and the optional backend connection check.
