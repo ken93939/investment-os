@@ -1,12 +1,16 @@
-package com.kenkwok.investmentos.marketdata
+package com.kenkwok.investmentos.marketdata.configuration
 
-import com.kenkwok.investmentos.marketdata.alphavantage.AlphaVantageHttpTransport
-import com.kenkwok.investmentos.marketdata.alphavantage.AlphaVantageProvider
+import com.kenkwok.investmentos.marketdata.adapter.out.alphavantage.AlphaVantageAdapter
+import com.kenkwok.investmentos.marketdata.adapter.out.alphavantage.AlphaVantageRestClient
+import com.kenkwok.investmentos.marketdata.adapter.out.alphavantage.BoundedJdkRequestFactory
+import com.kenkwok.investmentos.marketdata.application.MarketDataGateway
+import com.kenkwok.investmentos.marketdata.application.port.out.FinancialDataProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.web.client.RestClient
 import java.net.http.HttpClient
 import java.time.Clock
 import java.time.Duration
@@ -36,14 +40,18 @@ class MarketDataConfiguration {
     @Bean
     fun alphaVantageProvider(
         properties: MarketDataProperties,
+        builder: RestClient.Builder,
         @Qualifier("marketDataHttpClient") client: HttpClient,
     ): FinancialDataProvider {
         require(properties.primary != "alpha-vantage" || properties.alphaVantageApiKey.isNotBlank()) {
             "Set ALPHA_VANTAGE_API_KEY before selecting alpha-vantage"
         }
         val clock = Clock.systemUTC()
-        return AlphaVantageProvider(
-            AlphaVantageHttpTransport(properties.alphaVantageApiKey, client, properties.requestTimeout, clock),
+        return AlphaVantageAdapter(
+            AlphaVantageRestClient(
+                builder.requestFactory(BoundedJdkRequestFactory(properties.alphaVantageApiKey, client, properties.requestTimeout)).build(),
+                clock,
+            ),
             clock,
         )
     }

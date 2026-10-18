@@ -70,9 +70,14 @@ not change credentials in an already initialized PostgreSQL volume.
 
 ## Main flow and design choices
 
+The [backend architecture guide](../docs/BACKEND_ARCHITECTURE.md) describes the
+capability modules, ports and adapters, typed provider clients, mapping, and
+dependency checks. Domain and application code remain independent of Spring,
+Jackson, JPA, and HTTP client libraries.
+
 1. `InvestmentOsApplication.kt` starts Spring and scans `com.kenkwok.investmentos`.
 2. `application.yaml` configures PostgreSQL and JPA from environment variables.
-3. Future feature packages will own controllers, services, entities, and repositories.
+3. Capability packages own domain models, application logic, ports, and adapters.
    Services should define transaction boundaries; `open-in-view: false` prevents
    controllers from silently fetching lazy database state after a service returns.
 
@@ -122,8 +127,11 @@ has a five second timeout. The health endpoint also checks database availability
 
 ## Financial data providers
 
-The `marketdata` package implements US-002's provider contracts and the initial
-Alpha Vantage adapter. It is disabled by default and needs no key for normal
+The `marketdata` module implements US-002's provider contracts and the initial
+Alpha Vantage adapter. `application.MarketDataGateway` calls application-owned
+outbound ports; the Alpha Vantage adapter calls a typed `RestClient` client and
+maps provider DTOs into domain models. ArchUnit tests enforce the dependency rules.
+It is disabled by default and needs no key for normal
 startup/tests. See [the provider guide](../docs/US-002_DATA_PROVIDERS.md) for
 configuration, dataset limitations, provenance, typed failures, and the explicit
 `./gradlew liveProviderTest` command. Financial HTTP endpoints and persistence

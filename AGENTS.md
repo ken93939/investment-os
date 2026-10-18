@@ -43,6 +43,7 @@ Build a personal Bloomberg-inspired investment research application with portfol
 - If permissions prevent branch creation, report the limitation before making changes and leave the default branch's history untouched. Do not bypass the review requirement or claim a branch was created.
 
 ## Repository and backend conventions
+- For backend module structure, port ownership, provider DTOs/mappers, or HTTP client changes, read `docs/BACKEND_ARCHITECTURE.md`. It defines implemented layering rules, transport guarantees, and verification requirements.
 - Keep `backend/` independently buildable with its own Gradle wrapper. Future `frontend/` and `python/` projects should own their builds and dependencies; separate builds do not imply separate deployed services.
 - For backend setup, IntelliJ import, database configuration, and build commands, read `backend/README.md` before changing those workflows. In IntelliJ, link `backend/build.gradle.kts` as a Gradle project and use the configured JDK.
 - Use Kotlin with Spring Boot, Spring Data JPA, and PostgreSQL for the backend. Treat the Gradle build as the source of truth for toolchain and dependency versions.
@@ -63,7 +64,7 @@ Build a personal Bloomberg-inspired investment research application with portfol
 - Add migration, PostgreSQL-specific SQL, and concurrency tests when those behaviors are introduced; the existing persistence smoke tests do not establish those guarantees.
 
 ## Market-data provider conventions
-- Use the application-owned contracts in the backend `marketdata` package. Keep provider JSON, HTTP status handling, and field mappings inside adapters; callers use `MarketDataGateway` and typed `MarketDataException` codes.
+- Use `marketdata.application.MarketDataGateway` and its typed `MarketDataException` codes. Internal models belong to `marketdata.domain`, outbound ports to `marketdata.application.port.out`, and provider DTOs, HTTP clients, and mappers to `marketdata.adapter.out`; Spring wiring belongs to `marketdata.configuration`.
 - Read `docs/US-002_DATA_PROVIDERS.md` before changing provider configuration, coverage, adjustment semantics, or error handling. Provider integration stays optional; ordinary builds/tests make no remote provider calls.
 - Preserve provider/dataset provenance, retrieval time, source dates, units, and explicit unknown metadata. Keep publication time distinct from fiscal period end; current/revised records are not point-in-time backtest evidence.
 - Keep currency-dependent financial amounts as `BigDecimal`. Never replace missing fields with zero or label raw daily prices as adjusted/live data. Preserve available history windows and nullable currency/exchange information.
@@ -94,6 +95,20 @@ Build a personal Bloomberg-inspired investment research application with portfol
 - Distinguish factual data, computed metrics, assumptions, and model opinions; cite underlying records where possible.
 - Avoid look-ahead bias in backtests; consider splits, dividends, missing observations, and restated financial statements.
 - Do not enable automated trading or external financial transactions without a separately approved design and explicit human authorization.
+
+## Agent skills
+
+### Issue tracker
+
+Use GitHub Issues in `ken93939/investment-os`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use one root glossary and `docs/adr/`. See `docs/agents/domain.md`.
 
 ## Skills and tools
 - External skills such as grill-me, pstack, or gstack may be evaluated, but are optional. Verify Codex compatibility and inspect their scripts/permissions before installation.

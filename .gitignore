@@ -11,6 +11,7 @@
 **/.next/
 **/coverage/
 **/out/
+!backend/src/**/out/
 *.tsbuildinfo
 *.log
 **/.sites-runtime/

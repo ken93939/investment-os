@@ -1,10 +1,17 @@
-package com.kenkwok.investmentos.marketdata.alphavantage
+package com.kenkwok.investmentos.marketdata.adapter.out.alphavantage
 
-import com.kenkwok.investmentos.marketdata.MarketDataError
-import com.kenkwok.investmentos.marketdata.MarketDataException
+import com.kenkwok.investmentos.marketdata.adapter.out.alphavantage.dto.request.OverviewRequest
+import com.kenkwok.investmentos.marketdata.adapter.out.alphavantage.dto.request.SymbolSearchRequest
+import com.kenkwok.investmentos.marketdata.application.MarketDataError
+import com.kenkwok.investmentos.marketdata.application.MarketDataException
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import io.micrometer.observation.Observation
+import io.micrometer.observation.ObservationHandler
+import io.micrometer.observation.ObservationRegistry
 import org.junit.jupiter.api.Test
+import org.springframework.http.client.observation.ClientRequestObservationContext
+import org.springframework.web.client.RestClient
 import java.net.InetSocketAddress
 import java.net.URI
 import java.net.http.HttpClient
@@ -20,7 +27,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class AlphaVantageHttpTransportTests {
+class AlphaVantageRestClientTests {
     private val clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC)
 
     @Test
@@ -39,10 +46,10 @@ class AlphaVantageHttpTransportTests {
                 exchange.responseHeaders.set("Retry-After", hint)
                 respond(exchange, 429, "rate limited")
             }) { uri, client ->
-                val transport = AlphaVantageHttpTransport("test-key", client, Duration.ofSeconds(2), clock, uri)
+                val transport = httpClient("test-key", client, Duration.ofSeconds(2), clock, uri)
 
                 // WHEN
-                val result = runCatching { transport.request(emptyMap()) }
+                val result = runCatching { transport.overview(OverviewRequest("IBM")) }
 
                 // THEN
                 val error = assertIs<MarketDataException>(result.exceptionOrNull())
@@ -51,6 +58,20 @@ class AlphaVantageHttpTransportTests {
             }
         }
     }
+
+    private fun httpClient(
+        key: String,
+        client: HttpClient,
+        timeout: Duration,
+        clock: Clock,
+        uri: URI,
+        maxBytes: Int = 8 * 1024 * 1024,
+    ): AlphaVantageRestClient =
+        AlphaVantageRestClient(
+            RestClient.builder().requestFactory(BoundedJdkRequestFactory(key, client, timeout, maxBytes)).build(),
+            clock,
+            uri,
+        )
 
     private fun withServer(
         handler: (HttpExchange) -> Unit,
@@ -87,15 +108,15 @@ class AlphaVantageHttpTransportTests {
         var query = ""
         withServer({ exchange ->
             query = exchange.requestURI.rawQuery
-            respond(exchange, 200, """{"value":1}""")
+            respond(exchange, 200, """{"bestMatches":[]}""")
         }) { uri, client ->
-            val transport = AlphaVantageHttpTransport("synthetic-test-key", client, Duration.ofSeconds(2), clock, uri)
+            val transport = httpClient("synthetic-test-key", client, Duration.ofSeconds(2), clock, uri)
 
             // WHEN
-            val result = transport.request(mapOf("function" to "SYMBOL_SEARCH", "keywords" to "A&B"))
+            val result = transport.search(SymbolSearchRequest("A&B"))
 
             // THEN
-            assertEquals(1, result.path("value").asInt())
+            assertEquals(emptyList(), result.matches)
             assertTrue(query.contains("keywords=A%26B"))
             assertTrue(query.contains("apikey=synthetic-test-key"))
         }
@@ -110,10 +131,10 @@ class AlphaVantageHttpTransportTests {
             exchange.responseHeaders.set("Retry-After", "45")
             respond(exchange, 429, "synthetic-test-key")
         }) { uri, client ->
-            val transport = AlphaVantageHttpTransport("synthetic-test-key", client, Duration.ofSeconds(2), clock, uri)
+            val transport = httpClient("synthetic-test-key", client, Duration.ofSeconds(2), clock, uri)
 
             // WHEN
-            val result = runCatching { transport.request(mapOf("function" to "OVERVIEW")) }
+            val result = runCatching { transport.overview(OverviewRequest("IBM")) }
 
             // THEN
             val error = assertIs<MarketDataException>(result.exceptionOrNull())
@@ -139,10 +160,10 @@ class AlphaVantageHttpTransportTests {
 
         cases.forEach { (status, code) ->
             withServer({ exchange -> respond(exchange, status, "sensitive-provider-body") }) { uri, client ->
-                val transport = AlphaVantageHttpTransport("test-key", client, Duration.ofSeconds(2), clock, uri)
+                val transport = httpClient("test-key", client, Duration.ofSeconds(2), clock, uri)
 
                 // WHEN
-                val result = runCatching { transport.request(emptyMap()) }
+                val result = runCatching { transport.overview(OverviewRequest("IBM")) }
 
                 // THEN
                 val error = assertIs<MarketDataException>(result.exceptionOrNull())
@@ -169,10 +190,10 @@ class AlphaVantageHttpTransportTests {
 
         cases.forEach { (body, code) ->
             withServer({ exchange -> respond(exchange, 200, body) }) { uri, client ->
-                val transport = AlphaVantageHttpTransport("test-key", client, Duration.ofSeconds(2), clock, uri)
+                val transport = httpClient("test-key", client, Duration.ofSeconds(2), clock, uri)
 
                 // WHEN
-                val result = runCatching { transport.request(emptyMap()) }
+                val result = runCatching { transport.overview(OverviewRequest("IBM")) }
 
                 // THEN
                 assertEquals(code, assertIs<MarketDataException>(result.exceptionOrNull()).code)
@@ -184,10 +205,10 @@ class AlphaVantageHttpTransportTests {
     fun `GIVEN a response exceeding the byte limit WHEN reading the response THEN the transfer is rejected as malformed`() {
         // GIVEN
         withServer({ exchange -> respond(exchange, 200, "x".repeat(1024)) }) { uri, client ->
-            val transport = AlphaVantageHttpTransport("test-key", client, Duration.ofSeconds(2), clock, uri, maxBytes = 64)
+            val transport = httpClient("test-key", client, Duration.ofSeconds(2), clock, uri, maxBytes = 64)
 
             // WHEN
-            val result = runCatching { transport.request(emptyMap()) }
+            val result = runCatching { transport.overview(OverviewRequest("IBM")) }
 
             // THEN
             assertEquals(MarketDataError.MALFORMED_RESPONSE, assertIs<MarketDataException>(result.exceptionOrNull()).code)
@@ -204,10 +225,10 @@ class AlphaVantageHttpTransportTests {
                 release.await(1, TimeUnit.SECONDS)
                 exchange.close()
             }) { uri, client ->
-                val transport = AlphaVantageHttpTransport("test-key", client, Duration.ofMillis(200), clock, uri)
+                val transport = httpClient("test-key", client, Duration.ofMillis(200), clock, uri)
 
                 // WHEN
-                val result = runCatching { transport.request(emptyMap()) }
+                val result = runCatching { transport.overview(OverviewRequest("IBM")) }
 
                 // THEN
                 assertEquals(MarketDataError.TIMEOUT, assertIs<MarketDataException>(result.exceptionOrNull()).code)
@@ -226,10 +247,10 @@ class AlphaVantageHttpTransportTests {
             calls++
             respond(exchange, 200, "{}")
         }) { uri, client ->
-            val transport = AlphaVantageHttpTransport("", client, Duration.ofSeconds(2), clock, uri)
+            val transport = httpClient("", client, Duration.ofSeconds(2), clock, uri)
 
             // WHEN
-            val result = runCatching { transport.request(emptyMap()) }
+            val result = runCatching { transport.overview(OverviewRequest("IBM")) }
 
             // THEN
             assertEquals(MarketDataError.NOT_CONFIGURED, assertIs<MarketDataException>(result.exceptionOrNull()).code)
@@ -246,14 +267,122 @@ class AlphaVantageHttpTransportTests {
             exchange.responseHeaders.set("Location", "/query?redirected=true")
             respond(exchange, 302, "redirect")
         }) { uri, client ->
-            val transport = AlphaVantageHttpTransport("test-key", client, Duration.ofSeconds(2), clock, uri)
+            val transport = httpClient("test-key", client, Duration.ofSeconds(2), clock, uri)
 
             // WHEN
-            val result = runCatching { transport.request(emptyMap()) }
+            val result = runCatching { transport.overview(OverviewRequest("IBM")) }
 
             // THEN
             assertEquals(MarketDataError.UNAVAILABLE, assertIs<MarketDataException>(result.exceptionOrNull()).code)
             assertEquals(1, calls)
+        }
+    }
+
+    @Test
+    fun `GIVEN a chunked response exceeding the byte limit WHEN reading THEN transfer fails without trusting content length`() {
+        // GIVEN
+        withServer({ exchange ->
+            exchange.sendResponseHeaders(200, 0)
+            exchange.responseBody.use { it.write("x".repeat(1024).toByteArray()) }
+        }) { uri, client ->
+            val providerClient = httpClient("test-key", client, Duration.ofSeconds(2), clock, uri, maxBytes = 64)
+
+            // WHEN
+            val result = runCatching { providerClient.overview(OverviewRequest("IBM")) }
+
+            // THEN
+            assertEquals(MarketDataError.MALFORMED_RESPONSE, assertIs<MarketDataException>(result.exceptionOrNull()).code)
+        }
+    }
+
+    @Test
+    fun `GIVEN a trickling body WHEN total deadline expires THEN timeout occurs and the client remains usable`() {
+        // GIVEN
+        val release = CountDownLatch(1)
+        val calls =
+            java.util.concurrent.atomic
+                .AtomicInteger()
+        try {
+            withServer({ exchange ->
+                if (calls.incrementAndGet() == 1) {
+                    exchange.sendResponseHeaders(200, 0)
+                    try {
+                        exchange.responseBody.use { body ->
+                            while (!release.await(30, TimeUnit.MILLISECONDS)) {
+                                body.write(' '.code)
+                                body.flush()
+                            }
+                        }
+                    } catch (_: java.io.IOException) {
+                        // Cancellation closes the first response while another request can proceed.
+                    }
+                } else {
+                    respond(exchange, 200, """{"Symbol":"IBM"}""")
+                }
+            }) { uri, client ->
+                val providerClient = httpClient("test-key", client, Duration.ofMillis(400), clock, uri)
+                val start = System.nanoTime()
+
+                // WHEN
+                val result = runCatching { providerClient.overview(OverviewRequest("IBM")) }
+                val elapsed = Duration.ofNanos(System.nanoTime() - start)
+                release.countDown()
+                val next = providerClient.overview(OverviewRequest("IBM"))
+
+                // THEN
+                assertEquals(MarketDataError.TIMEOUT, assertIs<MarketDataException>(result.exceptionOrNull()).code)
+                assertTrue(elapsed < Duration.ofSeconds(2))
+                assertEquals("IBM", next.symbol)
+                assertEquals(2, calls.get())
+            }
+        } finally {
+            release.countDown()
+        }
+    }
+
+    @Test
+    fun `GIVEN a query credential WHEN RestClient observes a request THEN only the wire request contains the key`() {
+        // GIVEN
+        var wireQuery = ""
+        var interceptedUri = ""
+        val observedUris = mutableListOf<String>()
+        val registry =
+            io.micrometer.observation.ObservationRegistry
+                .create()
+        registry.observationConfig().observationHandler(
+            object : ObservationHandler<ClientRequestObservationContext> {
+                override fun supportsContext(context: Observation.Context): Boolean = context is ClientRequestObservationContext
+
+                override fun onStop(context: ClientRequestObservationContext) {
+                    observedUris += context.carrier?.uri.toString()
+                    observedUris += context.highCardinalityKeyValues.map { it.value }
+                }
+            },
+        )
+        withServer({ exchange ->
+            wireQuery = exchange.requestURI.rawQuery
+            respond(exchange, 200, """{"Symbol":"IBM"}""")
+        }) { uri, client ->
+            val restClient =
+                RestClient
+                    .builder()
+                    .observationRegistry(registry)
+                    .requestInterceptor { request, body, execution ->
+                        interceptedUri = request.uri.toString()
+                        execution.execute(request, body)
+                    }.requestFactory(BoundedJdkRequestFactory("synthetic-secret", client, Duration.ofSeconds(2)))
+                    .build()
+            val providerClient = AlphaVantageRestClient(restClient, clock, uri)
+
+            // WHEN
+            val result = providerClient.overview(OverviewRequest("IBM"))
+
+            // THEN
+            assertEquals("IBM", result.symbol)
+            assertTrue(wireQuery.contains("apikey=synthetic-secret"))
+            assertTrue(!interceptedUri.contains("synthetic-secret") && !interceptedUri.contains("apikey"))
+            assertTrue(observedUris.isNotEmpty())
+            assertTrue(observedUris.none { it.contains("synthetic-secret") || it.contains("apikey") })
         }
     }
 }

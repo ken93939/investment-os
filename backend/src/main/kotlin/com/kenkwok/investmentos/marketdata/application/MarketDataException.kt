@@ -1,4 +1,4 @@
-package com.kenkwok.investmentos.marketdata
+package com.kenkwok.investmentos.marketdata.application
 
 import java.time.Duration
 

@@ -1,6 +1,11 @@
-package com.kenkwok.investmentos.marketdata
+package com.kenkwok.investmentos.marketdata.configuration
 
+import com.kenkwok.investmentos.marketdata.application.MarketDataError
+import com.kenkwok.investmentos.marketdata.application.MarketDataException
+import com.kenkwok.investmentos.marketdata.application.MarketDataGateway
 import org.junit.jupiter.api.Test
+import org.springframework.boot.autoconfigure.AutoConfigurations
+import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -8,7 +13,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class MarketDataConfigurationTests {
-    private val runner = ApplicationContextRunner().withUserConfiguration(MarketDataConfiguration::class.java)
+    private val runner =
+        ApplicationContextRunner()
+            .withConfiguration(
+                AutoConfigurations.of(RestClientAutoConfiguration::class.java),
+            ).withUserConfiguration(MarketDataConfiguration::class.java)
 
     @Test
     fun `GIVEN no provider credentials WHEN creating the application configuration THEN startup works with market data disabled`() {

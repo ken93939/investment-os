@@ -1,4 +1,4 @@
-package com.kenkwok.investmentos.marketdata
+package com.kenkwok.investmentos.marketdata.domain
 
 import java.math.BigDecimal
 import java.time.Instant
@@ -15,7 +15,7 @@ value class Symbol private constructor(
         fun parse(input: String): Symbol {
             val normalized = input.trim().uppercase(Locale.ROOT)
             if (!normalized.matches(Regex("[A-Z][A-Z0-9]*([.-][A-Z0-9]+)*")) || normalized.length > 20) {
-                throw MarketDataException(MarketDataError.INVALID_INPUT, "Use a valid stock or ETF symbol of at most 20 characters")
+                throw InvalidMarketDataValue("Use a valid stock or ETF symbol of at most 20 characters")
             }
             return Symbol(normalized)
         }
@@ -27,7 +27,7 @@ data class DateRange(
     val to: LocalDate,
 ) {
     init {
-        if (from > to) throw MarketDataException(MarketDataError.INVALID_INPUT, "Start date must not follow end date")
+        if (from > to) throw InvalidMarketDataValue("Start date must not follow end date")
     }
 }
 

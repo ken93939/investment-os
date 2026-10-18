@@ -52,9 +52,13 @@ Without credentials, the live acceptance criterion remains unverified.
 
 ## Interface and data flow
 
-`MarketDataGateway` → selected `FinancialDataProvider` → Alpha Vantage adapter →
-bounded HTTP transport → provider. Parsing and error mapping happen inside the
-adapter before application models return to the caller.
+`application.MarketDataGateway` → selected `application.port.out.FinancialDataProvider`
+→ `adapter.out.alphavantage.AlphaVantageAdapter` → typed `AlphaVantageRestClient`
+→ bounded JDK request factory → provider. Endpoint-specific response DTOs remain
+inside the adapter. Instrument, price, statement, and macro mappers validate and
+convert DTOs into `domain` models before results return to the caller. See the
+[architecture guide](BACKEND_ARCHITECTURE.md) for dependency rules and the client
+contracts. Request DTOs represent GET query parameters and contain no credentials.
 
 For example, a future Kotlin service can inject `MarketDataGateway` and call
 `instrument(" ibm ")`; the provider receives `IBM`. Changing `market-data.primary`
@@ -122,10 +126,11 @@ credential-bearing request cannot follow an unexpected destination. HTTP 429
 retains `Retry-After` when supplied; JSON rate notices and entitlement failures
 inside HTTP 200 responses are also recognized.
 
-Alpha Vantage requires the key in its query string. The adapter never logs URLs,
-provider bodies, or raw transport/parser causes. Avoid enabling JDK HTTP request
-debug logging or outbound URL logging for this client; those facilities could
-expose query credentials outside the adapter's error handling.
+Alpha Vantage requires the key in its query string. `BoundedJdkRequestFactory`
+adds it immediately before sending, so RestClient interceptors and observations
+see a URI without the credential. The adapter never logs provider bodies or raw
+transport/parser causes. Keep JDK HTTP request/wire debug logging disabled: it
+can expose the actual credential-bearing URI outside the adapter's error handling.
 
 ## Verification and what to learn
 
@@ -135,7 +140,7 @@ selection, input rejection, all dataset mappings, exact decimals, nullable field
 error envelopes, HTTP failures, retry metadata, timeouts during body reading,
 response limits, and disabled startup configuration.
 
-`./gradlew build ktlintCheck --no-daemon` passed with 40 tests, including the
+Before this refactor, `./gradlew build ktlintCheck --no-daemon` passed with 40 tests, including the
 existing migration/readiness tests. Compose configuration, image builds, isolated
 stack startup with integration disabled, and `scripts/smoke-compose.sh` also passed.
 The ordinary test report excludes the live provider class. The live integration
@@ -144,8 +149,11 @@ story's final acceptance checkbox remains pending until it passes with a valid
 key. The preceding US-001 hosted CI run is independently pending; no CI success
 is inferred from local checks.
 
-Start reading `MarketDataGateway.kt`, `FinancialDataProvider.kt`,
-`MarketDataModels.kt`, and `alphavantage/AlphaVantageProvider.kt`. Trace one income
-statement through normalization. Then remove `reportedCurrency` from a test fixture
+Start reading `application/MarketDataGateway.kt`,
+`application/port/out/FinancialDataProvider.kt`, `domain/MarketDataModels.kt`, and
+`adapter/out/alphavantage/AlphaVantageAdapter.kt`. Follow `incomeStatement` in
+`AlphaVantageRestClient` into `mapper/StatementMapper.kt`. The client checks HTTP
+status/error envelopes and decodes strict DTOs; the mapper validates financial
+meaning; the adapter attaches provenance. Then remove `reportedCurrency` from a test fixture
 and compare that failure with a missing optional `operatingIncome` value: one makes
 the report unusable; the other remains an explicit unknown.
